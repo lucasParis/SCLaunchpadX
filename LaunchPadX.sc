@@ -10,6 +10,27 @@ LaunchPadX{
 		^super.new.init();
 	}
 
+	getColor{
+		arg x,y;
+		var color, degree;
+		degree = this.getDegree(x,y);
+		color = 0;
+		if((degree%7) == 0)
+		{
+			color = 39;
+		};
+		if((degree%7) == 4)
+		{
+			color = 11;
+		};
+		^color;
+	}
+
+	getDegree{
+		arg x, y;
+		^x + (y * 2);
+	}
+
 	init{
 		inClient = MIDIClient.sources.detect{|a|a.name.contains("LPX MIDI Out")};
 		outClient = MIDIClient.destinations.detect{|a|a.name.contains("LPX MIDI In")};
@@ -23,43 +44,72 @@ LaunchPadX{
 
 		testSynths = ();
 
+
+		8.do{
+			arg x;
+			8.do{
+				arg y;
+				var color, note;
+				color = this.getColor(x,y);
+				// if((x == 0) || (x == 2))
+				// {
+				// 	color = 37;
+				// };
+				note = x + (y*10) + 11;
+
+				midiOut.noteOn(0,note,color);
+
+			};
+		};
+
+
+
+
 		midiRecv.noteOn = {
 			arg id, channel, note, velocity;
 			var x, y;
+			var degree;
 			x = (note -11)%10;
 			y = floor((note -11)/10).asInt;
-			[x,y].postln;
-			/*a.postln;
-			b.postln;
-			c.postln;
-			d.postln;*/
 
-			midiOut.noteOn(0, note, (4*velocity/127));
+			midiOut.noteOn(0, note, (3*(velocity/127))+ 1);
 
 
-
-			testSynths[note.asSymbol] = Synth.new(\lpTest,[freq: Scale.minor.degreeToFreq(x , 60.midicps, y-3), amp: 0.4 * pow(velocity/127.0, 0.5)]);
+			degree = this.getDegree(x,y);
+			testSynths[note.asSymbol] = Synth.new(\lpTest,[freq: Scale.major.degreeToFreq(degree, 60.midicps, -1), amp: 0.4, velocity:velocity/127.0]);
 
 		};
+
+
+
 		midiRecv.noteOff = {
 			arg id, channel, note, velocity;
 			var x, y;
+			var color;
 			x = (note -11)%10;
 			y = floor((note -11)/10).asInt;
 
+			/*			color = 0;
 
-			midiOut.noteOff(0,note,0);
+			if((x == 0) || (x == 2))
+			{
+			color = 37;
+			};*/
+			color = this.getColor(x,y);
+
+			midiOut.noteOn(0,note,color);
 			testSynths[note.asSymbol].release;
 		};
 
 
 		midiRecv.polytouch = {
 			arg id, channel, note, touch;
+			// touch.postln;
 
-			midiOut.noteOn(0, note, (4*touch/127));
+			midiOut.noteOn(0, note, (3*(touch/127)) + 1);
 
 
-			testSynths[note.asSymbol].set(\amp, 0.4 * pow(touch/127.0, 0.5));
+			testSynths[note.asSymbol].set(\pressure, touch/127.0);
 
 		};
 	}
