@@ -4,16 +4,16 @@ LaunchPadX{
 	var inClient, outClient;
 	var <midiRecv, <midiOut;
 
-	var testSynths;
+	var <> onPadDown, <> onPadUp, <> onPressure;
 
 	*new{
 		^super.new.init();
 	}
 
-	getColor{
+	/*getColor{
 		arg x,y;
 		var color, degree;
-		degree = this.getDegree(x,y);
+		// degree = this.getDegree(x,y);
 		color = 0;
 		if((degree%7) == 0)
 		{
@@ -24,12 +24,7 @@ LaunchPadX{
 			color = 11;
 		};
 		^color;
-	}
-
-	getDegree{
-		arg x, y;
-		^x + (y * 2);
-	}
+	}*/
 
 	init{
 		inClient = MIDIClient.sources.detect{|a|a.name.contains("LPX MIDI Out")};
@@ -42,80 +37,78 @@ LaunchPadX{
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 11, 0, 0/*sensivity*/, 247]);//enable polytouch with sensitive setting
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 4, 2/*sensivity*/, 0, 247]);//velocity curve
 
-		testSynths = ();
-
-
+		/*//initial color
 		8.do{
 			arg x;
 			8.do{
 				arg y;
 				var color, note;
 				color = this.getColor(x,y);
-				// if((x == 0) || (x == 2))
-				// {
-				// 	color = 37;
-				// };
-				note = x + (y*10) + 11;
 
-				midiOut.noteOn(0,note,color);
+				note = this.xyToNote(x,y);
 
+				this.setColor(x, y, color);
 			};
-		};
-
-
-
+		};*/
 
 		midiRecv.noteOn = {
 			arg id, channel, note, velocity;
-			var x, y;
-			var degree;
-			x = (note -11)%10;
-			y = floor((note -11)/10).asInt;
+			var xy;
+			xy  = this.noteToXY(note);
 
-			midiOut.noteOn(0, note, (3*(velocity/127))+ 1);
-
-
-			degree = this.getDegree(x,y);
-			testSynths[note.asSymbol] = Synth.new(\lpTest,[freq: Scale.major.degreeToFreq(degree, 60.midicps, -1), amp: 0.4, velocity:velocity/127.0]);
-
+			if(this.onPadDown != nil)
+			{
+				this.onPadDown.(xy.x, xy.y, velocity, this);
+			};
 		};
 
 
 
 		midiRecv.noteOff = {
 			arg id, channel, note, velocity;
-			var x, y;
-			var color;
-			x = (note -11)%10;
-			y = floor((note -11)/10).asInt;
+			var xy;
+			xy  = this.noteToXY(note);
 
-			/*			color = 0;
-
-			if((x == 0) || (x == 2))
+			if(this.onPadUp != nil)
 			{
-			color = 37;
-			};*/
-			color = this.getColor(x,y);
-
-			midiOut.noteOn(0,note,color);
-			testSynths[note.asSymbol].release;
+				this.onPadUp.(xy.x, xy.y, this);
+			};
 		};
 
 
 		midiRecv.polytouch = {
 			arg id, channel, note, touch;
-			// touch.postln;
+			var xy;
+			xy  = this.noteToXY(note);
 
-			midiOut.noteOn(0, note, (3*(touch/127)) + 1);
-
-
-			testSynths[note.asSymbol].set(\pressure, touch/127.0);
-
+			if(this.onPressure != nil)
+			{
+				this.onPressure.(xy.x, xy.y, touch, this);
+			};
 		};
 	}
 
-	testLeds
-	{
+	setColor{
+		arg x, y, color;
+		var note;
+		note = this.xyToNote(x,y);
+		midiOut.noteOn(0, note, color);
+	}
 
+	xyToNote{
+		arg x, y;
+		var note;
+		note = x + (y*10) + 11;
+		^note;
+	}
+
+	noteToXY{
+		arg note;
+		var x, y;
+		x = (note -11)%10;
+		y = floor((note -11)/10).asInt;
+		^(\x:x,\y:y);
 	}
 }
+
+//set sysex colors
