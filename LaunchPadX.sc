@@ -1,30 +1,40 @@
-LaunchPadX{
 
+
+LPXDisplayLayer{
+	var <> colorMatrix;
+
+	*new{
+		^super.new.init();
+	}
+
+	init{
+		colorMatrix = Array2D.fromArray(8,8, 0!64);
+	}
+
+
+	setColor{
+		arg x, y, color;
+		colorMatrix[x, y] = color;
+	}
+}
+
+
+LaunchPadX{
 	var midiIn;
 	var inClient, outClient;
 	var <midiRecv, <midiOut;
 
 	var <> onPadDown, <> onPadUp, <> onPressure;
 
+	var displayRoutine;
+	var <> displayRefreshFlag;
+
+	var displayLayers;
+	var displayLayerOrder;
+
 	*new{
 		^super.new.init();
 	}
-
-	/*getColor{
-		arg x,y;
-		var color, degree;
-		// degree = this.getDegree(x,y);
-		color = 0;
-		if((degree%7) == 0)
-		{
-			color = 39;
-		};
-		if((degree%7) == 4)
-		{
-			color = 11;
-		};
-		^color;
-	}*/
 
 	init{
 		inClient = MIDIClient.sources.detect{|a|a.name.contains("LPX MIDI Out")};
@@ -37,19 +47,6 @@ LaunchPadX{
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 11, 0, 0/*sensivity*/, 247]);//enable polytouch with sensitive setting
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 4, 2/*sensivity*/, 0, 247]);//velocity curve
 
-		/*//initial color
-		8.do{
-			arg x;
-			8.do{
-				arg y;
-				var color, note;
-				color = this.getColor(x,y);
-
-				note = this.xyToNote(x,y);
-
-				this.setColor(x, y, color);
-			};
-		};*/
 
 		midiRecv.noteOn = {
 			arg id, channel, note, velocity;
@@ -58,7 +55,7 @@ LaunchPadX{
 
 			if(this.onPadDown != nil)
 			{
-				this.onPadDown.(xy.x, xy.y, velocity, this);
+				this.onPadDown.(xy.x, xy.y, velocity/127.0, this);
 			};
 		};
 
@@ -83,9 +80,83 @@ LaunchPadX{
 
 			if(this.onPressure != nil)
 			{
-				this.onPressure.(xy.x, xy.y, touch, this);
+				this.onPressure.(xy.x, xy.y, touch/127.0, this);
 			};
 		};
+
+		displayLayerOrder = ();
+		displayLayers = ();
+
+		displayRefreshFlag = false;
+		//routine to display
+		displayRoutine = Routine(
+			{
+				loop{
+					displayRefreshFlag.if{
+						this.display;
+						displayRefreshFlag = false;
+
+					};
+					0.016.wait;
+				};
+			}
+		).play;
+
+	}
+
+	display{
+
+		//get all layers
+		//traverse from highest priority, if not zero use this value
+		var outputArray;
+		outputArray = Array2D.fromArray(8,8,0!64);
+
+		8.do{
+			arg x;
+			8.do{
+				arg y;
+				block{ |break|
+					displayLayerOrder.size.do{
+						arg i;
+						var val;
+						val = displayLayers[displayLayerOrder[i]][x,y];
+						(val != 0).if
+						(
+							{
+								outputArray[x,y] = val;
+								break.value;
+							},
+							{
+								outputArray[x,y] = val;
+							}
+						);
+					};
+				};
+			};
+		};
+
+		//output
+		8.do{
+			arg x;
+			8.do{
+				arg y;
+				var val;
+				val = outputArray[x,y];
+				this.setColor(x,y,val);
+			};
+		};
+
+	}
+
+	newDisplayLayer{
+		arg name;
+		//store name as index
+		displayLayerOrder[displayLayers.size] = name.asSymbol;
+		//create a new layer
+		// displayLayers[name.asSymbol] = LPXDisplayLayer();
+		displayLayers[name.asSymbol] = Array2D.fromArray(8,8, 0!64);
+
+
 	}
 
 	setColor{
@@ -93,6 +164,17 @@ LaunchPadX{
 		var note;
 		note = this.xyToNote(x,y);
 		midiOut.noteOn(0, note, color);
+	}
+
+	setLayerColor{
+		arg layer, x, y, color;
+
+		// displayLayers[layer].setColor(x, y, color);
+		displayLayers[layer][x,y] = color;
+		displayRefreshFlag = true;
+		// var note;
+		// note = this.xyToNote(x,y);
+		// midiOut.noteOn(0, note, color);
 	}
 
 	xyToNote{
