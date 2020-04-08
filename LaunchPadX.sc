@@ -188,7 +188,7 @@ LaunchPadX{
 		arg note;
 		var x, y;
 		x = (note -11)%10;
-		y = floor((note -11)/10).asInt;
+		y = floor((note -11)/10).asInteger;
 		^(\x:x,\y:y);
 	}
 }
