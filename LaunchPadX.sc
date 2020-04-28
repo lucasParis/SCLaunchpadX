@@ -25,6 +25,7 @@ LaunchPadX{
 	var <midiRecv, <midiOut;
 
 	var <> onPadDown, <> onPadUp, <> onPressure;
+	var <> onTopRowDown, <> onTopRowUp, <> onRightColumnDown, <> onRightColumnUp;
 
 	var displayRoutine;
 	var <> displayRefreshFlag;
@@ -46,6 +47,35 @@ LaunchPadX{
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 0, 127, 247]);//enable programmer mode
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 11, 0, 0/*sensivity*/, 247]);//enable polytouch with sensitive setting
 		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 4, 2/*sensivity*/, 0, 247]);//velocity curve
+
+
+		midiRecv.control = {
+			arg id, channel, cc, value;
+			// var xy;
+			// xy  = this.noteToXY(note);
+			if(cc < 90)
+			{
+				var index;
+				index = (((cc - 9)/10) -1).floor.asInteger;
+				if(value > 1) {
+					if(this.onRightColumnDown != nil) { this.onRightColumnDown.(index, this) };
+				} {
+					if(this.onRightColumnUp != nil) { this.onRightColumnUp.(index, this) };
+				};
+				// this.onPadUp.(xy.x, xy.y, this);
+			} {
+				var index;
+				index = cc - 91;
+				if(value > 1) {
+					if(this.onTopRowDown != nil) { this.onTopRowDown.(index, this) };
+				} {
+					if(this.onTopRowUp != nil) { this.onTopRowUp.(index, this) };
+				};
+			};
+
+
+
+		};
 
 
 		midiRecv.noteOn = {
