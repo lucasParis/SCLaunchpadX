@@ -8,7 +8,7 @@ LPXDisplayLayer{
 	}
 
 	init{
-		colorMatrix = Array2D.fromArray(8,8, 0!64);
+		colorMatrix = Array2D.fromArray(9, 9, 0!(9*9));
 	}
 
 
@@ -41,96 +41,103 @@ LaunchPadX{
 		inClient = MIDIClient.sources.detect{|a|a.name.contains("LPX MIDI Out")};
 		outClient = MIDIClient.destinations.detect{|a|a.name.contains("LPX MIDI In")};
 
-		midiRecv = MIDIIn.connect(0, inClient.uid);
-		midiOut = MIDIOut(0, outClient.uid);
-		midiOut.latency = 0;
-		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 0, 127, 247]);//enable programmer mode
-		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 11, 0, 0/*sensivity*/, 247]);//enable polytouch with sensitive setting
-		midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 4, 2/*sensivity*/, 0, 247]);//velocity curve
 
-
-		midiRecv.control = {
-			arg id, channel, cc, value;
-			// var xy;
-			// xy  = this.noteToXY(note);
-			if(cc < 90)
-			{
-				var index;
-				index = (((cc - 9)/10) -1).floor.asInteger;
-				if(value > 1) {
-					if(this.onRightColumnDown != nil) { this.onRightColumnDown.(index, this) };
-				} {
-					if(this.onRightColumnUp != nil) { this.onRightColumnUp.(index, this) };
-				};
-				// this.onPadUp.(xy.x, xy.y, this);
-			} {
-				var index;
-				index = cc - 91;
-				if(value > 1) {
-					if(this.onTopRowDown != nil) { this.onTopRowDown.(index, this) };
-				} {
-					if(this.onTopRowUp != nil) { this.onTopRowUp.(index, this) };
-				};
-			};
-
-
-
-		};
-
-
-		midiRecv.noteOn = {
-			arg id, channel, note, velocity;
-			var xy;
-			xy  = this.noteToXY(note);
-
-			if(this.onPadDown != nil)
-			{
-				this.onPadDown.(xy.x, xy.y, velocity/127.0, this);
-			};
-		};
-
-
-
-		midiRecv.noteOff = {
-			arg id, channel, note, velocity;
-			var xy;
-			xy  = this.noteToXY(note);
-
-			if(this.onPadUp != nil)
-			{
-				this.onPadUp.(xy.x, xy.y, this);
-			};
-		};
-
-
-		midiRecv.polytouch = {
-			arg id, channel, note, touch;
-			var xy;
-			xy  = this.noteToXY(note);
-
-			if(this.onPressure != nil)
-			{
-				this.onPressure.(xy.x, xy.y, touch/127.0, this);
-			};
-		};
-
-		displayLayerOrder = ();
-		displayLayers = ();
-
-		displayRefreshFlag = false;
-		//routine to display
-		displayRoutine = Routine(
-			{
-				loop{
-					displayRefreshFlag.if{
-						this.display;
-						displayRefreshFlag = false;
-
+		if(inClient != nil) {
+			midiRecv = MIDIIn.connect(0, inClient.uid);
+			midiRecv.control = {
+				arg id, channel, cc, value;
+				// var xy;
+				// xy  = this.noteToXY(note);
+				if(cc < 90)
+				{
+					var index;
+					index = (((cc - 9)/10) -1).floor.asInteger;
+					if(value > 1) {
+						if(this.onRightColumnDown != nil) { this.onRightColumnDown.(index, this) };
+					} {
+						if(this.onRightColumnUp != nil) { this.onRightColumnUp.(index, this) };
 					};
-					0.016.wait;
+					// this.onPadUp.(xy.x, xy.y, this);
+				} {
+					var index;
+					index = cc - 91;
+					if(value > 1) {
+						if(this.onTopRowDown != nil) { this.onTopRowDown.(index, this) };
+					} {
+						if(this.onTopRowUp != nil) { this.onTopRowUp.(index, this) };
+					};
 				};
-			}
-		).play;
+
+
+
+			};
+
+
+			midiRecv.noteOn = {
+				arg id, channel, note, velocity;
+				var xy;
+				xy  = this.noteToXY(note);
+
+				if(this.onPadDown != nil)
+				{
+					this.onPadDown.(xy.x, xy.y, velocity/127.0, this);
+				};
+			};
+
+
+
+			midiRecv.noteOff = {
+				arg id, channel, note, velocity;
+				var xy;
+				xy  = this.noteToXY(note);
+
+				if(this.onPadUp != nil)
+				{
+					this.onPadUp.(xy.x, xy.y, this);
+				};
+			};
+
+
+			midiRecv.polytouch = {
+				arg id, channel, note, touch;
+				var xy;
+				xy  = this.noteToXY(note);
+
+				if(this.onPressure != nil)
+				{
+					this.onPressure.(xy.x, xy.y, touch/127.0, this);
+				};
+			};
+		};
+
+		if(outClient != nil) {
+			midiOut = MIDIOut(0, outClient.uid);
+			midiOut.latency = 0;
+			midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 0, 127, 247]);//enable programmer mode
+			midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 11, 0, 0/*sensivity*/, 247]);//enable polytouch with sensitive setting
+			midiOut.sysex(Int8Array[240, 0, 32, 41, 2, 12, 4, 2/*sensivity*/, 0, 247]);//velocity curve
+			displayLayerOrder = ();
+			displayLayers = ();
+
+			displayRefreshFlag = false;
+			//routine to display
+			displayRoutine = Routine(
+				{
+					loop{
+						displayRefreshFlag.if{
+							this.display;
+							displayRefreshFlag = false;
+
+						};
+						0.016.wait;
+					};
+				}
+			).play;
+		};
+
+
+
+
 
 	}
 
@@ -139,11 +146,11 @@ LaunchPadX{
 		//get all layers
 		//traverse from highest priority, if not zero use this value
 		var outputArray;
-		outputArray = Array2D.fromArray(8,8,0!64);
+		outputArray = Array2D.fromArray(9,9,0!(9*9));
 
-		8.do{
+		9.do{
 			arg x;
-			8.do{
+			9.do{
 				arg y;
 				block{ |break|
 					displayLayerOrder.size.do{
@@ -166,9 +173,9 @@ LaunchPadX{
 		};
 
 		//output
-		8.do{
+		9.do{
 			arg x;
-			8.do{
+			9.do{
 				arg y;
 				var val;
 				val = outputArray[x,y];
@@ -180,12 +187,14 @@ LaunchPadX{
 
 	newDisplayLayer{
 		arg name;
-		//store name as index
-		displayLayerOrder[displayLayers.size] = name.asSymbol;
-		//create a new layer
-		// displayLayers[name.asSymbol] = LPXDisplayLayer();
-		displayLayers[name.asSymbol] = Array2D.fromArray(8,8, 0!64);
+		if(displayLayers!= nil) {
 
+			//store name as index
+			displayLayerOrder[displayLayers.size] = name.asSymbol;
+			//create a new layer
+			// displayLayers[name.asSymbol] = LPXDisplayLayer();
+			displayLayers[name.asSymbol] = Array2D.fromArray(9,9, 0!(9*9));
+		};
 
 	}
 
@@ -200,11 +209,22 @@ LaunchPadX{
 		arg layer, x, y, color;
 
 		// displayLayers[layer].setColor(x, y, color);
-		displayLayers[layer][x,y] = color;
-		displayRefreshFlag = true;
+		if(displayLayers!= nil) {
+			displayLayers[layer][x,y] = color;
+			displayRefreshFlag = true;
+		}
+
 		// var note;
 		// note = this.xyToNote(x,y);
 		// midiOut.noteOn(0, note, color);
+	}
+	clearLayer {
+		arg layer;
+		if(displayLayers!= nil) {
+			displayLayers[layer] = Array2D.fromArray(9, 9, 0!(9*9));
+			displayRefreshFlag = true;
+
+		};
 	}
 
 	xyToNote{
